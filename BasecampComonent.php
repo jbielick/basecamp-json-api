@@ -104,7 +104,7 @@ class BCRequest {
 		curl_setopt($c, CURLOPT_URL, $url);
 		curl_setopt($c, CURLOPT_RETURNTRANSFER, 1);
 		curl_setopt($c, CURLOPT_FOLLOWLOCATION, true);
-		curl_setopt($c, CURLOPT_USERPWD, self::$username.':'.base64_decode(self::$password));
+		curl_setopt($c, CURLOPT_USERPWD, self::$username.':'.self::$password);
 		curl_setopt($c, CURLOPT_MAXREDIRS, 3);
 		curl_setopt($c, CURLOPT_HEADER, true);
 		curl_setopt($c, CURLOPT_HTTPHEADER, $headers);
