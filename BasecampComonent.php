@@ -2,6 +2,13 @@
 
 /**==============================================
 *	Basecamp Component
+*	6/21/2013
+*	 
+*	 ___ ___    _   ___ __  __ ___ _  _ _____
+*	| __| _ \  /_\ / __|  \/  | __| \| |_   _|
+*	| _||   / / _ \ (_ | |\/| | _|| .` | | |
+*	|_| |_|_\/_/ \_\___|_|  |_|___|_|\_| |_|
+*							FRAGMENTLABS.COM
 *	
 *	Author: Josh Bielick
 *	
@@ -9,10 +16,10 @@
 class BCRequest {
 	
 	private static $appName = 'My App Name';
-	private static $contactInfo = 'http://myApp.com';
-	private static $username = 'ceaseAndDesists@example.com';
-	private static $password = 'supercalifragalicious';
-	private static $apiUrl = 'https://basecamp.com/YOURACCOUNTID/api/v1';
+	private static $contactInfo = 'http://exchangeogram.com';
+	private static $username = 'ceaseAndDesist@noogle.com';
+	private static $password = 'supercalifragilicious';
+	private static $apiUrl = 'https://basecamp.com/YOUR_ACCOUNT_ID/api/v1';
 	
 	public static function get($endPoint, $query = array())
 	{
@@ -21,7 +28,6 @@ class BCRequest {
 	
 	public static function post($endPoint, $data = array())
 	{
-		$headers = array('Content-Type: application/json; charset=utf-8');
 		return self::request('POST', $endPoint, $data);
 	}
 	
@@ -56,10 +62,10 @@ class BCRequest {
 		
 		list($response_headers, $response_body) = preg_split("/\r\n\r\n|\n\n|\r\r/", $response, 2);
 		$headers = self::parse_headers($response_headers);
-		if(!in_array($headers['status'], array(404, 403, 500)))
-			return json_decode($response_body);
-		else
-			return false;
+		// if(!in_array($headers['status'], array(404, 403, 500)))
+		return json_decode($response_body);
+		// else
+			// return false;
 	}
 	
 	private static function parse_headers( $header ) {
@@ -86,8 +92,14 @@ class BCRequest {
 	
 	private static function curl_opts($c, $method, $url, $data, $headers)
 	{
+		if($method != 'GET') {
+			curl_setopt($c, CURLOPT_CUSTOMREQUEST, $method);
+		}
 		if(in_array($method, array('POST', 'PUT'))) {
-			curl_setopt($c, CURLOPT_POST, 1);
+			$json = trim(stripslashes(json_encode($data)), '"');
+			curl_setopt($c, CURLOPT_POSTFIELDS, $json);
+			$headers[] = 'Content-Type: application/json; charset=utf-8';
+			$headers[] = 'Content Length: '.strlen($json);
 		}
 		curl_setopt($c, CURLOPT_URL, $url);
 		curl_setopt($c, CURLOPT_RETURNTRANSFER, 1);
@@ -204,8 +216,9 @@ class BCCalendar {
 
 class BCComment {
 
-	public function add($data)
+	public function add($projectId, $item, $itemId, $data)
 	{
+		return $this->post('/project/'.$projectId.'/'.$item.'/'.$itemId.'/comments', $data);
 		# https://github.com/37signals/bcx-api/blob/master/sections/comments.md#create-comment
 	}
 	
