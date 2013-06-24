@@ -15,11 +15,12 @@
 *==============================================*/
 class BCRequest {
 	
-	private static $appName = 'My App Name';
+	private static $appName = 'Exchange-o-gram';
 	private static $contactInfo = 'http://exchangeogram.com';
-	private static $username = 'ceaseAndDesist@noogle.com';
-	private static $password = 'supercalifragilicious';
-	private static $apiUrl = 'https://basecamp.com/YOUR_ACCOUNT_ID/api/v1';
+	private static $username = 'noogler@fragmentlabs.com';
+	private static $password = '8675309';
+	private static $apiUrl = 'https://basecamp.com/911/api/v1';
+	public static $requestUrl;
 	
 	public static function get($endPoint, $query = array())
 	{
@@ -44,7 +45,7 @@ class BCRequest {
 	public static function request($method, $endPoint, $params = array(), $headers = array())
 	{
 		$url = self::$apiUrl.$endPoint.'.json';
-		if(in_array($method, array('GET', 'DELETE')))
+		if(in_array($method, array('GET', 'DELETE')) && !empty($params))
 		{
 			$url .= '?'.http_build_query($params);
 		}
@@ -63,6 +64,13 @@ class BCRequest {
 		list($response_headers, $response_body) = preg_split("/\r\n\r\n|\n\n|\r\r/", $response, 2);
 		$headers = self::parse_headers($response_headers);
 		// if(!in_array($headers['status'], array(404, 403, 500)))
+		$response_headers = explode("\n", $response_headers);
+		$headers = array();
+		foreach($response_headers as $i => $header) {
+			$header = explode(':', $header, 2);
+			$headers[$header[0]] = trim($header[1]);
+		}
+		print_R($headers);
 		return json_decode($response_body);
 		// else
 			// return false;
@@ -101,6 +109,7 @@ class BCRequest {
 			$headers[] = 'Content-Type: application/json; charset=utf-8';
 			$headers[] = 'Content Length: '.strlen($json);
 		}
+		self::$requestUrl = $url;
 		curl_setopt($c, CURLOPT_URL, $url);
 		curl_setopt($c, CURLOPT_RETURNTRANSFER, 1);
 		curl_setopt($c, CURLOPT_FOLLOWLOCATION, true);
@@ -110,8 +119,61 @@ class BCRequest {
 		curl_setopt($c, CURLOPT_HTTPHEADER, $headers);
 	}
 }
-class BCAccess {
 
+class BCObject {
+	protected $id;
+	public function store($data)
+	{
+		$this->requestUrl = BCRequest::$requestUrl;
+		if($data)
+			foreach($data as $key => $value) {
+				$this->$key = $value;
+			}
+		return $this;
+	}
+	
+	public function save()
+	{
+		$data = array();
+		foreach(get_object_vars($this) as $key => $value) {
+			if(!is_object($value) && !is_array($value))
+				$data[$key] = $value;
+		}
+		if(isset($this->id))
+			return BCRequest::put($this->requestUrl, $data);
+		else
+			echo 'create';
+	}
+	
+	public function _get($key)
+	{
+		return (isset($this->$key)) ? $this->$key : false;
+	}
+	
+	public function _set($key, $value=null)
+	{
+		if(is_array($key) && !isset($value))
+			foreach($key as $key1 => $value1)
+				$this->$key1 = $value1;
+		else
+			$this->$key = $value;
+		return $this;
+	}
+}
+
+class BCAccess extends BCObject {
+
+	protected $id;
+	protected $type;
+	
+	public function __construct($projectId=null, $type=null)
+	{
+		if($projectId)
+			$this->projectId = $projectId;
+		if($type)
+			$this->type = $type;
+	}
+	
 	/**
 	 * Lists all the people with access to the specified project
 	 *
@@ -120,8 +182,9 @@ class BCAccess {
 	 * @link https://github.com/37signals/bcx-api/blob/master/sections/accesses.md#get-accesses
 	 * @author Josh
 	 */
-	public function index($projectId, $type='projects')
+	public function index($projectId=null, $type='projects')
 	{
+		$projectId = ($projectId) ? $projectId : $this->projectId;
 		$endPoint = '/'.$type.'/'.$projectId.'/accesses';
 		$response = BCRequest::get($endPoint);
 		return $response;
@@ -148,7 +211,7 @@ class BCAccess {
 	}
 }
 
-class BCAttachment {
+class BCAttachment extends BCObject {
 
 	/**
 	 * Lists all attachments
@@ -172,7 +235,7 @@ class BCAttachment {
 	}
 }
 
-class BCCalendar {
+class BCCalendar extends BCObject {
 
 	/**
 	 * Lists Calendar Events
@@ -214,7 +277,7 @@ class BCCalendar {
 	}
 }
 
-class BCComment {
+class BCComment extends BCObject {
 
 	public function add($projectId, $item, $itemId, $data)
 	{
@@ -234,11 +297,11 @@ class BCComment {
 	}
 }
 
-class BCDocument {
+class BCDocument extends BCObject {
 
 }
 
-class BCEvent {
+class BCEvent extends BCObject {
 
 	/**
 	 * See all global events for the currently authorized account.
@@ -281,7 +344,7 @@ class BCEvent {
 	}
 }
 
-class BCMessage {
+class BCMessage extends BCObject {
 
 	public function get($projectId, $id)
 	{
@@ -311,7 +374,7 @@ class BCMessage {
 	}
 }
 
-class BCPerson {
+class BCPerson extends BCObject {
 	
 	public function index()
 	{
@@ -327,20 +390,15 @@ class BCPerson {
 		return BCRequest::get('/people/me');
 	}
 	
-	public function todos($id)
+	public function todos($id=null)
 	{
+		$id = ($id) ? $id : $this->id;
 		return BCRequest::get('/people/'.$id.'/assigned_todos');
 	}
 }
 
-class BCProject {
+class BCProject extends BCObject {
 
-	public function read($id)
-	{
-		$this->data = BCRequest::get('/projects/'.$id);
-		return $this;
-	}
-	
 	/**
 	 * Will return all active projects.
 	 *
@@ -426,9 +484,28 @@ class BCProject {
 	{
 		return BCRequest::delete('/people/'.$id);
 	}
+	
+	public function read($id)
+	{
+		parent::store($this->view($id));
+		$this->TodoList = new BCTodoList($this->id);
+		$this->Todo = new BCTodo(null, $this->id);
+		$this->Access = new BCAccess($this->id, 'projects');
+		return $this;
+	}
 }
 
-class BCTodoList {
+class BCTodoList extends BCObject {
+	
+	protected $id;
+	protected $projectId;
+	
+	public function __construct($projectId=null)
+	{
+		if($projectId)
+			$this->projectId = $projectId;
+	}
+	
 	/**
 	 * shows active todolists for this project (or all) sorted by position.
 	 *
@@ -441,15 +518,10 @@ class BCTodoList {
 	public function index($projectId = null, $completed = false)
 	{
 		$endPoint = ($completed) ? '/todolists/completed' : '/todolists';
+		$projectId = ($projectId) ? $projectId : $this->projectId;
 		if($projectId)
 			$endPoint = '/projects/'.$projectId.$endPoint;
 		return BCRequest::get($endPoint);
-	}
-	
-	public function read($projectId, $id)
-	{
-		$this->data = BCRequest::get('/projects/'.$projectId.'/todolists/'.$id);
-		return $this;
 	}
 	
 	/**
@@ -460,8 +532,9 @@ class BCTodoList {
 	 * @return array the todolist with todos sorted by position.
 	 * @author Josh
 	 */
-	public function view($projectId, $id)
+	public function view($id, $projectId = null)
 	{
+		$projectId = ($projectId) ? $projectId : $this->projectId;
 		return BCRequest::get('/projects/'.$projectId.'/todolists/'.$id);
 	}
 	
@@ -501,12 +574,32 @@ class BCTodoList {
 	{
 		return BCRequest::delete('/projects/'.$projectId.'/todolists/'.$id);
 	}
+	
+	public function read($id, $projectId=null)
+	{
+		$projectId = ($projectId) ? $projectId : $this->projectId;
+		parent::store($this->view($id, $projectId));
+		$this->Todo = new BCTodo(null, $projectId);
+		return $this;
+	}
 }
 
-class BCTodo {
-
-	public function view($projectId, $id)
+class BCTodo extends BCObject {
+	
+	protected $projectId;
+	protected $id;
+	
+	public function __construct($id = null, $projectId=null)
 	{
+		if($projectId)
+			$this->projectId = $projectId;
+		if($id)
+			$this->id = $id;
+	}
+
+	public function view($id, $projectId=null)
+	{
+		$projectId = ($projectId) ? $projectId : $this->projectId;
 		return BCRequest::get('/projects/'.$projectId.'/todos/'.$id);
 	}
 	
@@ -549,9 +642,24 @@ class BCTodo {
 	{
 		return BCRequest::delete('/project/'.$projectId.'/todoes/'.$id);
 	}
+	
+	public function read($id, $projectId=null)
+	{
+		$projectId = ($projectId) ? $projectId : $this->projectId;
+		parent::store($this->view($id, $projectId));
+		return $this;
+	}
 }
 
-class BCTopic {
+class BCTopic extends BCObject {
+	
+	protected $projectId;
+	
+	public function __construct($projectId=null)
+	{
+		if($projectId)
+			$this->projectId = $projectId;
+	}
 	
 	public function index($projectId=null, $page=null)
 	{
@@ -561,7 +669,7 @@ class BCTopic {
 	}
 }
 
-class BCUpload {
+class BCUpload extends BCObject {
 
 	public function add($projectId, $data)
 	{
@@ -571,7 +679,7 @@ class BCUpload {
 /**==============================================
 *	Component
 *==============================================*/
-class BasecampComponent extends Component{
+class BasecampComponent{
 	
 	public $Access;
 	public $Attachment;
@@ -585,8 +693,9 @@ class BasecampComponent extends Component{
 	public $TodoList;
 	public $Todo;
 	public $Topic;
+	public $data;
 	
-	public function initialize()
+	public function __construct()
 	{
 		$this->Access = new BCAccess();
 		$this->Attachment = new BCAttachment();
@@ -602,6 +711,16 @@ class BasecampComponent extends Component{
 		$this->Topic = new BCTopic();
 	}
 }
+
+$bc = new BasecampComponent();
+
+	$list = $bc->TodoList->read(3802073, 26973);
+	echo '<pre>';
+	print_r($list->_set('description', 'Testing Description Add')->save());
+	echo '</pre>';
+
+
+
 
 
 
