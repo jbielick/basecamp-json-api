@@ -1,17 +1,18 @@
-<?
+<?php
+
 /**==============================================
 * Basecamp JSON API Wrapper
 *
 * Author: Josh Bielick
 *
 * Usage
-*   $bc = new Basecamp();
+*   $bc = new Basecamp($config);
 *
 *   $project = $bc->Project->read(1234);
 *   print_r($project);
-*   $todolists = $project->TodoList->index();
+*   $todolists = $project->TodoList->list();
 *   $todoList = $project->TodoList->read($todolists[0]['id']);
-*   $todos = $todoList->Todo->index();
+*   $todos = $todoList->Todo->list();
 *   $todo = $todoList->Todo->read($todos[0]['id']);
 *   $todo->Comment->add(array('content' => 'You must complete this'));
 *
@@ -170,7 +171,7 @@ class BCAccess extends BCObject {
    * @link https://github.com/37signals/bcx-api/blob/master/sections/accesses.md#get-accesses
    * @author Josh
    */
-  public function index($projectId=null, $type='projects')
+  public function list($projectId=null, $type='projects')
   {
     $projectId = ($projectId) ? $projectId : $this->projectId;
     $endPoint = '/'.$type.'/'.$projectId.'/accesses';
@@ -211,7 +212,7 @@ class BCAttachment extends BCObject {
    * @link https://github.com/37signals/bcx-api/blob/master/sections/attachments.md#get-attachments
    * @author Josh
    */
-  public function index($projectId, $page=null)
+  public function list($projectId, $page=null)
   {
     $endPoint = (isset($projectId) && !empty($projectId)) ? '/projects/'.$projectId.'/attachments' : 'attachments';
     $params = ($page) ? array('page'=>$page) : array();
@@ -235,7 +236,7 @@ class BCCalendar extends BCObject {
    * @return array Array of calendar events for project or calendar specified
    * @author Josh
    */
-  public function index($type = 'projects', $id, $past=false)
+  public function list($type = 'projects', $id, $past=false)
   {
     $endPoint = '/'.$type.'/'.$id.'/calendar_events';
     if($past) {
@@ -315,7 +316,7 @@ class BCEvent extends BCObject {
    * @return array Array of all events after 'since' timestamp
    * @author Josh
    */
-  public function index($since, $page)
+  public function list($since, $page)
   {
     if(!isset($since)) {
       throw new Exception('Required argument not provided (timestamp) "since".');
@@ -384,7 +385,7 @@ class BCMessage extends BCObject {
 
 class BCPerson extends BCObject {
 
-  public function index()
+  public function list()
   {
     return BCRequest::get('/people');
   }
@@ -414,7 +415,7 @@ class BCProject extends BCObject {
    * @return array Array of Projects
    * @author Josh
    */
-  public function index($archived=false)
+  public function list($archived=false)
   {
     $endPoint = ($archived) ? '/projects/archived' : '/projects';
     return BCRequest::get($endPoint);
@@ -524,7 +525,7 @@ class BCTodoList extends BCObject {
    * @link https://github.com/37signals/bcx-api/blob/master/sections/todolists.md
    * @author Josh
    */
-  public function index($projectId = null, $completed = false)
+  public function list($projectId = null, $completed = false)
   {
     $endPoint = ($completed) ? '/todolists/completed' : '/todolists';
     $projectId = ($projectId) ? $projectId : $this->projectId;
@@ -690,7 +691,7 @@ class BCTopic extends BCObject {
     }
   }
 
-  public function index($projectId=null, $page=null)
+  public function list($projectId=null, $page=null)
   {
     $endPoint = ($projectId) ? '/projects/'.$projectId.'/topics' : '/topics';
     $query = ($page) ? array('page'=>$page) : null;
@@ -750,7 +751,3 @@ class Basecamp {
     $this->Topic = new BCTopic();
   }
 }
-
-
-
-
